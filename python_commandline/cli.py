@@ -40,7 +40,10 @@ class Command:
                     zip_file.write(full_path, archive_path)
 
     def get_cpu_arch(self) -> str:
-        return platform.machine()
+        arch = platform.machine()
+        if arch == "AMD64":
+            return "x86_64"
+        return arch
 
     def get_os(self) -> str:
         system_name = platform.system()
@@ -86,6 +89,11 @@ class Command:
     def copy_file(self, src: str, dst: str) -> None:
         shutil.copy(src, dst)
 
+    def mkdirs(self, path: str) -> None:
+        Path(path).mkdir(parents=True, exist_ok=True)
+
+    def move(self, src: str, dst: str) -> None:
+        shutil.move(src, dst)
 
 def main() -> None:
     fire.Fire(Command)
