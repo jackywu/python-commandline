@@ -63,7 +63,7 @@ class Command:
         raise RuntimeError(f"Faild to find site-packages dir in {dirs}")
 
     def get_version(self) -> str:
-        self.get_version_from_pyproject()
+        return self.get_version_from_pyproject()
 
     def get_version_from_config(self, module_name: str, class_name: str, field_name: str) -> str:
         cls = self.read_class_from_module(module_name, class_name)
@@ -108,23 +108,27 @@ class Command:
         Reads a specified field from a specified Pydantic model class in a specified module.
 
         Args:
-            module_name (str): The name of the module to import.
+            module_name (str): The name of the module file (without .py) to import.
             class_name (str): The name of the Pydantic model class to access.
-            field_name (str): The name of the field to read.
 
         Returns:
-            The value of the specified field.
+            The specified class.
 
         Raises:
             ImportError: If the module cannot be imported.
-            AttributeError: If the class or field does not exist.
+            AttributeError: If the class does not exist.
             TypeError: If the class is not a subclass of BaseModel.
         """
-        import importlib
+        import importlib.util
+        import os
 
         try:
-            # Import the specified module
-            module = importlib.import_module(module_name)
+            # Construct the module file path
+            module_file_path = os.path.join(os.getcwd(), f"{module_name}.py")
+            spec = importlib.util.spec_from_file_location(module_name, module_file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
             # Get the specified class
             cls = getattr(module, class_name)
 
@@ -133,8 +137,8 @@ class Command:
                 raise TypeError(f"Class '{class_name}' is not a subclass of BaseModel.")
 
             return cls
-        except ImportError as e:
-            raise ImportError(f"Could not import module '{module_name}': {str(e)}") from e
+        except FileNotFoundError as e:
+            raise ImportError(f"Module file '{module_name}.py' not found: {str(e)}") from e
         except AttributeError as e:
             raise AttributeError(f"Class '{class_name}' not found: {str(e)}") from e
 
