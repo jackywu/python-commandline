@@ -8,6 +8,7 @@ from pathlib import Path
 import dotenv
 import fire
 import tomllib
+from pydantic import BaseModel
 
 
 class Command:
@@ -47,14 +48,12 @@ class Command:
 
     def get_os(self) -> str:
         system_name = platform.system()
-        if system_name == "Windows":
-            return "Windows"
-        elif system_name == "Linux":
-            return "Linux"
-        elif system_name == "Darwin":
-            return "macOS"
-        else:
-            return "Unknown system"
+        system_map = {
+            "Windows": "Windows",
+            "Linux": "Linux",
+            "Darwin": "macOS"
+        }
+        return system_map.get(system_name, "Unknown system")
 
     def get_site_packages_dir(self) -> str:
         dirs = site.getsitepackages()
@@ -64,6 +63,14 @@ class Command:
         raise RuntimeError(f"Faild to find site-packages dir in {dirs}")
 
     def get_version(self) -> str:
+        self.get_version_from_pyproject()
+
+    def get_version_from_config(self, module_name: str, class_name: str, field_name: str) -> str:
+        cls = self.read_class_from_module(module_name, class_name)
+        obj = cls()
+        return getattr(obj, field_name)
+
+    def get_version_from_pyproject(self) -> str:
         try:
             # Load the pyproject.toml file
             with Path("pyproject.toml").open("rb") as toml_file:
@@ -80,6 +87,7 @@ class Command:
         except Exception as e:
             raise Exception(f"Error while parsing pyproject.toml: {str(e)}") from e
 
+
     def set_env(self) -> None:
         dotenv.set_key(".env", "version", self.get_version())
 
@@ -94,6 +102,41 @@ class Command:
 
     def move(self, src: str, dst: str) -> None:
         shutil.move(src, dst)
+
+    def read_class_from_module(self, module_name: str, class_name: str):
+        """
+        Reads a specified field from a specified Pydantic model class in a specified module.
+
+        Args:
+            module_name (str): The name of the module to import.
+            class_name (str): The name of the Pydantic model class to access.
+            field_name (str): The name of the field to read.
+
+        Returns:
+            The value of the specified field.
+
+        Raises:
+            ImportError: If the module cannot be imported.
+            AttributeError: If the class or field does not exist.
+            TypeError: If the class is not a subclass of BaseModel.
+        """
+        import importlib
+
+        try:
+            # Import the specified module
+            module = importlib.import_module(module_name)
+            # Get the specified class
+            cls = getattr(module, class_name)
+
+            # Check if the class is a subclass of BaseModel
+            if not issubclass(cls, BaseModel):
+                raise TypeError(f"Class '{class_name}' is not a subclass of BaseModel.")
+
+            return cls
+        except ImportError as e:
+            raise ImportError(f"Could not import module '{module_name}': {str(e)}") from e
+        except AttributeError as e:
+            raise AttributeError(f"Class '{class_name}' not found: {str(e)}") from e
 
 def main() -> None:
     fire.Fire(Command)
