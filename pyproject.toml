@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "python-commandline"
-version = "0.1.4"
+version = "0.1.5"
 description = "A set of common Linux commands implementation in Python"
 authors = ["jacky.wu <jacky.wucheng@gmail.com>"]
 readme = "README.md"
